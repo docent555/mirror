@@ -1,16 +1,19 @@
 program mirr
    use, intrinsic :: iso_c_binding
    use reflection
+   use ifport
    implicit none
 
    integer(4), parameter :: nn = 1024
    real(8) dx
    integer(4) i, j, il
-   real(8) ak(nn), i_c(nn), mir(nn), trig(2*nn), trig4(8*nn), work(nn), work4(4*nn), x, &
-      i_sintr_mir(nn), bk(nn), b(nn), sk(2*nn), s(2*nn), d(nn), &
-      sintr_mir4(4*nn), i_sintr_mir4(4*nn), s4(4*nn), sk4(4*nn)
+   real(8) ak(nn), i_c(nn), mir(nn), trig4(8*nn), work4(4*nn), x, &
+      bk1(nn), bk2(nn), b(nn), d(nn), &
+      sintr_mir4(4*nn), i_sintr_mir4(4*nn), s4(4*nn), sk4(4*nn), s1(nn), sk1(nn)
+   integer(c_int) hours1, minutes1, seconds1, hours2, minutes2, seconds2
+   real(c_double) start_time1, stop_time1, calc_time1, start_time2, stop_time2, calc_time2
 
-   call reflect_init(nn, 0.35d0, 2.0d0)
+   call reflect_init(nn, 0.35d0, 1.0d0)
 
    dx = L/n
 
@@ -31,13 +34,10 @@ program mirr
    i_c(:) = ak
    call c06haf(1, n, i_c, 'initial', trig, work, ifail)         
    
-   sintr_mir2(1:n) = sintr_mir/dsqrt(1.0d0/n)
-   sintr_mir2(n+1:2*n) = 0
-   
    sintr_mir4(1:n) = sintr_mir/dsqrt(0.5d0/n)
    sintr_mir4(n+1:4*n) = 0
    
-   sintr_mir = sintr_mir/dsqrt(2.0d0/n) ! it seems that analytical transform multiplied by 2/n by default         
+            
 
    !reverse transformation from analytics
    i_sintr_mir(:) = sintr_mir
@@ -66,30 +66,54 @@ program mirr
    !      bk(i) = bk(i) + r(i, j)*ak(j)
    !   end do
    !end do
-
-   call maggot(ak, bk)
    
    !reflected by maggot
-   b(:) = bk
-   call c06haf(1, n, b, 'subsequent', trig, work, ifail)
-
-   !now with sine transform   
-   sk(1:n) = ak   
-   sk(n+1:2*n) = 0
+   !start_time1 = dclock()
+   !do i=1,100000
+   call maggot(ak, bk1)
+   !enddo
+   !stop_time1 = dclock()
+   !
+   !calc_time1 = stop_time1 - start_time1
+   !
+   !hours1 = calc_time1/3600
+   !minutes1 = (calc_time1 - hours1*3600)/60
+   !seconds1 = calc_time1 - hours1*3600 - minutes1*60
+   !
+   !!reflected by reflect
+   !start_time2 = dclock()
+   !do i=1,100000
+   call reflect(ak, bk2)
+   !enddo
+   !stop_time2 = dclock()
+   !
+   !calc_time2 = stop_time2 - start_time2
+   !
+   !hours2 = calc_time2/3600
+   !minutes2 = (calc_time2 - hours2*3600)/60
+   !seconds2 = calc_time2 - hours2*3600 - minutes2*60
+   !
+   !write (*, '(/)')
+   !print *, 'Calcualting maggot took:', hours1, 'h :', minutes1, 'm :', seconds1, 's'
+   !print *, 'Calcualting reflect took:', hours2, 'h :', minutes2, 'm :', seconds2, 's'
+      
+   b(:) = bk1
+   call c06haf(1, n, b, 'subsequent', trig, work, ifail)      
    
-   !reverse transformation from analytics on 2*n
-   i_sintr_mir2(:) = sintr_mir2
-   call c06haf(1, 2*n, i_sintr_mir2, 'initial', trig2, work2, ifail)
+   d(:) = bk2
+   call c06haf(1, n, d, 'subsequent', trig, work, ifail)
    
-   s(:) = sk
-   call c06haf(1, 2*n, s, 'subsequent', trig2, work2, ifail)
+   !reverse transformation from analytics on n
+   sk1(:) = ak   
    
-   sk = s*i_sintr_mir2
-   call c06haf(1, 2*n, sk, 'subsequent', trig2, work2, ifail)      
+   i_sintr_mir(:) = sintr_mir
+   call c06haf(1, n, i_sintr_mir, 'initial', trig, work, ifail)
    
-   do i=1,n
-      d(i)=bk(i)-sk(i)
-   enddo
+   s1(:) = sk1
+   call c06haf(1, n, s1, 'subsequent', trig, work, ifail)
+   
+   sk1(:) = s1*i_sintr_mir
+   call c06haf(1, n, sk1, 'subsequent', trig, work, ifail)  
    
    !reverse transformation from analytics on 4*n
    sk4(1:n) = ak   
@@ -107,38 +131,30 @@ program mirr
    !shifting
    do i = n, 2, -1
       b(i) = b(i - 1)
+      d(i) = d(i - 1)
       i_sintr_mir(i) = i_sintr_mir(i-1)      
    end do
    b(1) = 0
-   i_sintr_mir(1) = 0      
-   do i = 2*n, 2, -1      
-      i_sintr_mir2(i) = i_sintr_mir2(i-1)     
-      s(i)=s(i-1)      
-   end do   
-   i_sintr_mir2(1) = 0
-   do i = 4*n, 2, -1      
-      i_sintr_mir4(i) = i_sintr_mir4(i-1)         
-      s4(i)=s4(i-1)
-   end do   
-   i_sintr_mir4(1) = 0
+   d(1) = 0
+   i_sintr_mir(1) = 0        
+   !do i = 4*n, 2, -1      
+   !   i_sintr_mir4(i) = i_sintr_mir4(i-1)         
+   !   s4(i)=s4(i-1)
+   !end do   
+   !i_sintr_mir4(1) = 0
 
    open (1, file='test1.dat')
    do i = 1, n
       !write (1, '(i,5f12.7)') i - 1, i_c(i), mir(i), sintr_mir(i), i_sintr_mir(i), b(i)      
-      write (1, '(2f12.7)') (i - 1)*dx, bk(i)
+      write (1, '(4f12.7)') (i - 1)*dx, sk1(i), bk1(i), sk1(i)-bk1(i)
    end do
    close (1)
-      
-   open (1, file='test2.dat')
-   do i = 1, 2*n      
-      write (1, '(2f12.7)') (i - 1)*dx/2, i_sintr_mir2(i)      
-   end do
-   close (1)
+        
    
-   open (1, file='test4.dat')
-   do i = 1, 4*n      
-      write (1, '(2f12.7)') (i - 1)*dx/4, i_sintr_mir4(i)   
-   end do
-   close (1)
+   !open (1, file='test4.dat')
+   !do i = 1, 4*n      
+   !   write (1, '(2f12.7)') (i - 1)*dx/4, i_sintr_mir4(i)   
+   !end do
+   !close (1)
 
 end program mirr
