@@ -7,7 +7,7 @@ program mirror
    integer(4), parameter :: nn = 1024
    real(8) dx
    integer(4) i, j, il, ifail
-   real(8) ak(nn), i_c(nn), mirr(nn), trig4(8*nn), work4(4*nn), x, fsin(nn), fsin2(2*nn), fft_fiction(2*nn), fsintr(nn), fsintr2(2*nn), s(nn)
+   real(8) ak(nn), i_c(nn), mirr(nn), trig4(8*nn), work4(4*nn), x, fsin(nn), fsin2(2*nn), fft_fiction(2*nn), fsintr(nn), fsintr2(2*nn), s(nn), b(nn)
    integer(c_int) hours1, minutes1, seconds1, hours2, minutes2, seconds2
    real(c_double) start_time1, stop_time1, calc_time1, start_time2, stop_time2, calc_time2
 
@@ -57,6 +57,7 @@ program mirror
    ak(7) = 12
    ak(9) = 7
    ak(11) = 16
+   ak(881) = 8
 
    !mirror
    !il = xl/dx
@@ -92,17 +93,19 @@ program mirror
 
    !call c06ecf(fft_result, fft_mirr, 2*n, ifail)
 
-   fft_result = 0.0d0   
+   fft_result = 0.0d0
    call ifft(fft_result, fft_mirr)
 
    mirr(:) = sintr_mirr
    call c06haf(1, n, mirr, 'initial', trig, work, ifail)
 
+   call maggot(ak, b)
+   call c06haf(1, n, b, 'subsequent', trig, work, ifail)
+
    open (1, file='test.dat')
    do i = 1, n
-      !write (1, '(3f12.7)') (i - 1)*dx, fsin2(i), fft_fiction(i)
-      !write (1, '(3E18.7)') (i - 1)*dx, fft_result(i), fft_mirr(i)
-      write (1, '(2E18.7)') (i - 1)*dx, i_c(i)
+      write (1, '(3E18.7)') (i - 1)*dx, fft_result(i), fft_mirr(i)
+      !write (1, '(3E18.7)') (i - 1)*dx, i_c(i), b(i)
    end do
    close (1)
 

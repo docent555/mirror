@@ -2,7 +2,7 @@ module reflection
 
    implicit none
 
-   integer(4) n
+   integer(4) n, n2
    real(8) L, xl, xr, pi
 
    real(8), allocatable :: sintr_mirr(:), trig(:), work(:), fft_mirr(:), fft_result(:), fft_work(:), r(:, :)
@@ -17,6 +17,7 @@ contains
       real(8) LL, xll
 
       n = nn
+      n2 = 2*n
       L = LL
       xl = xll
       xr = L - xl
@@ -36,10 +37,12 @@ contains
       end do
       sintr_mirr(:) = sintr_mirr/dsqrt(2.0d0/n)
 
-      !make fourier coefficients from sine transform
-      fft_mirr = 0.0d0
-      fft_mirr(2:n) = -sintr_mirr(1:n - 1)
-      fft_mirr(n + 2:2*n) = sintr_mirr(n - 1:1:-1)
+      !!make fourier coefficients from sine transform
+      !fft_mirr = 0.0d0
+      !fft_mirr(2:n) = -sintr_mirr(1:n - 1)
+      !fft_mirr(n + 2:2*n) = sintr_mirr(n - 1:1:-1)
+
+      call sine2fourier(sintr_mirr, fft_mirr)
 
       !matrix
       do i = 1, n
@@ -83,10 +86,35 @@ contains
       b = 0.0d0
       do i = 1, n
          do j = 1, n
-            b(i) = b(i) + r(j,i)*a(j)
+            b(i) = b(i) + r(j, i)*a(j)
          end do
       end do
 
    end subroutine maggot
+
+   subroutine sine2fourier(s, f)
+
+      implicit none
+
+      real(8), intent(in) :: s(n)
+      real(8), intent(out) :: f(n2)
+
+      !make fourier coefficients from sine transform
+      f = 0.0d0
+      f(2:n) = -s(1:n - 1)
+      f(n + 2:2*n) = s(n - 1:1:-1)
+   end subroutine sine2fourier
+
+   subroutine fourier2sine(f, s)
+
+      implicit none
+
+      real(8), intent(in) :: f(n2)
+      real(8), intent(out) :: s(n)
+
+      !make sine transform coefficients from fourier ones
+      s(1:n - 1) = -f(2:n)
+      s(n) = 0
+   end subroutine fourier2sine
 
 end module reflection
