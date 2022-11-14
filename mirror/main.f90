@@ -1,4 +1,4 @@
-program mirr
+program mirror
    use, intrinsic :: iso_c_binding
    use reflection
    use ifport
@@ -6,18 +6,50 @@ program mirr
 
    integer(4), parameter :: nn = 1024
    real(8) dx
-   integer(4) i, j, il
-   real(8) ak(nn), i_c(nn), mir(nn), trig4(8*nn), work4(4*nn), x, &
-      bk1(nn), bk2(nn), b(nn), d(nn), &
-      sintr_mir4(4*nn), i_sintr_mir4(4*nn), s4(4*nn), sk4(4*nn), s1(nn), sk1(nn)
+   integer(4) i, j, il, ifail
+   real(8) ak(nn), i_c(nn), mirr(nn), trig4(8*nn), work4(4*nn), x, fsin(nn), fsin2(2*nn), fft_fiction(2*nn), fsintr(nn), fsintr2(2*nn), s(nn)
    integer(c_int) hours1, minutes1, seconds1, hours2, minutes2, seconds2
    real(c_double) start_time1, stop_time1, calc_time1, start_time2, stop_time2, calc_time2
 
-   call reflect_init(nn, 0.35d0, 1.0d0)
+   call reflection_init(nn, 1.0d0, 0.35d0)
 
    dx = L/n
 
-   !coefficients of the function that we will mark
+   do i = 1, n - 1
+      fsin(i) = dsin(pi/L*i*dx)
+   end do
+
+   s(1) = 0.0d0
+   s(2:n) = fsin(1:n - 1)
+
+   !!with fourer
+   !fsin2 = 0.0d0
+   !fsin2(2:n) = fsin(1:n - 1)
+   !fsin2(n + 2:2*n) = -fsin(n - 1:1:-1)
+   !!fourier transform
+   !call c06fcf(fsin2, fft_fiction, 2*n, work, ifail)
+   !!backward fourier
+   !call c06gcf(fft_fiction, 2*n, ifail)
+   !call c06fcf(fsin2, fft_fiction, 2*n, work, ifail)
+   !call c06gcf(fft_fiction, 2*n, ifail)
+   !
+   !!with sine transorm
+   !fsintr(:) = fsin
+   !call c06haf(1, n, fsintr, 'initial', trig, work, ifail)
+   !!from sine transform to fourier transform
+   !fft_result = 0.0d0
+   !fft_result(2:n) = -fsintr(1:n - 1)
+   !fft_result(n + 2:2*n) = fsintr(n - 1:1:-1)
+   !!!backward fourier
+   !!call c06gcf(fft_result, 2*n, ifail)
+   !!call c06fcf(fsintr2, fft_result, 2*n, work, ifail)
+   !!call c06gcf(fft_result, 2*n, ifail)
+   !!from fourier to sine
+   !fsin(1:n-1) = -fft_result(2:n)
+   !fsin(n) = 0
+   !call c06haf(1, n, fsin, 'subsequent', trig, work, ifail)
+
+   !coefficients of the function that we will reflect
    ak = 0
    ak(1) = 25
    ak(3) = 17
@@ -26,22 +58,21 @@ program mirr
    ak(9) = 7
    ak(11) = 16
 
-   il = xl/dx
-   mir = 1.0d0
-   mir(1:il) = 0.0d0
-   mir(n - il:n) = 0.0d0
+   !mirror
+   !il = xl/dx
+   !mir = 1.0d0
+   !mir(1:il) = 0.0d0
+   !mir(n - il:n) = 0.0d0
 
    i_c(:) = ak
-   call c06haf(1, n, i_c, 'initial', trig, work, ifail)         
-   
-   sintr_mir4(1:n) = sintr_mir/dsqrt(0.5d0/n)
-   sintr_mir4(n+1:4*n) = 0
-   
-            
+   call c06haf(1, n, i_c, 'initial', trig, work, ifail)
+
+   !sintr_mir4(1:n) = sintr_mir/dsqrt(0.5d0/n)
+   !sintr_mir4(n+1:4*n) = 0
 
    !reverse transformation from analytics
-   i_sintr_mir(:) = sintr_mir
-   call c06haf(1, n, i_sintr_mir, 'subsequent', trig, work, ifail)
+   !i_sintr_mir(:) = sintr_mir
+   !call c06haf(1, n, i_sintr_mir, 'subsequent', trig, work, ifail)
 
    !!matrix
    !do i = 1, n
@@ -58,103 +89,29 @@ program mirr
    !      end if
    !   end do
    !end do
-   !
-   !bk = 0
-   !!multiply the matrix by the sine transform of the signal
-   !do i = 1, n
-   !   do j = 1, n
-   !      bk(i) = bk(i) + r(i, j)*ak(j)
-   !   end do
-   !end do
-   
-   !reflected by maggot
-   !start_time1 = dclock()
-   !do i=1,100000
-   call maggot(ak, bk1)
-   !enddo
-   !stop_time1 = dclock()
-   !
-   !calc_time1 = stop_time1 - start_time1
-   !
-   !hours1 = calc_time1/3600
-   !minutes1 = (calc_time1 - hours1*3600)/60
-   !seconds1 = calc_time1 - hours1*3600 - minutes1*60
-   !
-   !!reflected by reflect
-   !start_time2 = dclock()
-   !do i=1,100000
-   call reflect(ak, bk2)
-   !enddo
-   !stop_time2 = dclock()
-   !
-   !calc_time2 = stop_time2 - start_time2
-   !
-   !hours2 = calc_time2/3600
-   !minutes2 = (calc_time2 - hours2*3600)/60
-   !seconds2 = calc_time2 - hours2*3600 - minutes2*60
-   !
-   !write (*, '(/)')
-   !print *, 'Calcualting maggot took:', hours1, 'h :', minutes1, 'm :', seconds1, 's'
-   !print *, 'Calcualting reflect took:', hours2, 'h :', minutes2, 'm :', seconds2, 's'
-      
-   b(:) = bk1
-   call c06haf(1, n, b, 'subsequent', trig, work, ifail)      
-   
-   d(:) = bk2
-   call c06haf(1, n, d, 'subsequent', trig, work, ifail)
-   
-   !reverse transformation from analytics on n
-   sk1(:) = ak   
-   
-   i_sintr_mir(:) = sintr_mir
-   call c06haf(1, n, i_sintr_mir, 'initial', trig, work, ifail)
-   
-   s1(:) = sk1
-   call c06haf(1, n, s1, 'subsequent', trig, work, ifail)
-   
-   sk1(:) = s1*i_sintr_mir
-   call c06haf(1, n, sk1, 'subsequent', trig, work, ifail)  
-   
-   !reverse transformation from analytics on 4*n
-   sk4(1:n) = ak   
-   sk4(n+1:4*n) = 0
-   
-   i_sintr_mir4(:) = sintr_mir4
-   call c06haf(1, 4*n, i_sintr_mir4, 'initial', trig4, work4, ifail)
-   
-   s4(:) = sk4
-   call c06haf(1, 4*n, s4, 'subsequent', trig4, work4, ifail)
-   
-   sk4(:) = s4*i_sintr_mir4
-   call c06haf(1, 4*n, sk4, 'subsequent', trig4, work4, ifail)      
-   
-   !shifting
-   do i = n, 2, -1
-      b(i) = b(i - 1)
-      d(i) = d(i - 1)
-      i_sintr_mir(i) = i_sintr_mir(i-1)      
-   end do
-   b(1) = 0
-   d(1) = 0
-   i_sintr_mir(1) = 0        
-   !do i = 4*n, 2, -1      
-   !   i_sintr_mir4(i) = i_sintr_mir4(i-1)         
-   !   s4(i)=s4(i-1)
-   !end do   
-   !i_sintr_mir4(1) = 0
 
-   open (1, file='test1.dat')
+   !call c06ecf(fft_result, fft_mirr, 2*n, ifail)
+
+   fft_result = 0.0d0   
+   call ifft(fft_result, fft_mirr)
+
+   mirr(:) = sintr_mirr
+   call c06haf(1, n, mirr, 'initial', trig, work, ifail)
+
+   open (1, file='test.dat')
    do i = 1, n
-      !write (1, '(i,5f12.7)') i - 1, i_c(i), mir(i), sintr_mir(i), i_sintr_mir(i), b(i)      
-      write (1, '(4f12.7)') (i - 1)*dx, sk1(i), bk1(i), sk1(i)-bk1(i)
+      !write (1, '(3f12.7)') (i - 1)*dx, fsin2(i), fft_fiction(i)
+      !write (1, '(3E18.7)') (i - 1)*dx, fft_result(i), fft_mirr(i)
+      write (1, '(2E18.7)') (i - 1)*dx, i_c(i)
    end do
    close (1)
-        
-   
-   !open (1, file='test4.dat')
-   !do i = 1, 4*n      
-   !   write (1, '(2f12.7)') (i - 1)*dx/4, i_sintr_mir4(i)   
-   !end do
-   !close (1)
 
-end program mirr
+   open (1, file='test2.dat')
+   write (1, '(2E18.7)') 0, 0
+   do i = 1, n - 1
+      !write (1, '(2f12.7)') i*dx, fsin(i)
+      write (1, '(2E18.7)') i*dx, mirr(i)
+   end do
+   close (1)
+
+end program mirror
