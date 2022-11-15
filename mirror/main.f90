@@ -7,7 +7,7 @@ program mirror
    integer(4), parameter :: nn = 1024
    real(8) dx
    integer(4) i, j, il, ifail
-   real(8) ak(nn), i_c(nn), mirr(nn), trig4(8*nn), work4(4*nn), x, fsin(nn), fsin2(2*nn), fft_fiction(2*nn), fsintr(nn), fsintr2(2*nn), s(nn), b(nn)
+   real(8) ak(nn), a(nn), a2(2*nn), mirr(nn), trig4(8*nn), work4(4*nn), x, fsin(nn), fsin2(2*nn), fft_fiction(2*nn), fsintr(nn), fsintr2(2*nn), s(nn), b(nn)
    integer(c_int) hours1, minutes1, seconds1, hours2, minutes2, seconds2
    real(c_double) start_time1, stop_time1, calc_time1, start_time2, stop_time2, calc_time2
 
@@ -56,8 +56,7 @@ program mirror
    ak(5) = 21
    ak(7) = 12
    ak(9) = 7
-   ak(11) = 16
-   ak(881) = 8
+   ak(11) = 16   
 
    !mirror
    !il = xl/dx
@@ -65,8 +64,8 @@ program mirror
    !mir(1:il) = 0.0d0
    !mir(n - il:n) = 0.0d0
 
-   i_c(:) = ak
-   call c06haf(1, n, i_c, 'initial', trig, work, ifail)
+   a(:) = ak
+   call c06haf(1, n, a, 'initial', trig, work, ifail)
 
    !sintr_mir4(1:n) = sintr_mir/dsqrt(0.5d0/n)
    !sintr_mir4(n+1:4*n) = 0
@@ -93,28 +92,32 @@ program mirror
 
    !call c06ecf(fft_result, fft_mirr, 2*n, ifail)
 
-   fft_result = 0.0d0
-   call ifft(fft_result, fft_mirr)
-
-   mirr(:) = sintr_mirr
-   call c06haf(1, n, mirr, 'initial', trig, work, ifail)
-
-   call maggot(ak, b)
-   call c06haf(1, n, b, 'subsequent', trig, work, ifail)
+   !fft_result = 0.0d0
+   !call ifft(fft_result, fft_mirr)
+   !
+   !mirr(:) = sintr_mirr
+   !call c06haf(1, n, mirr, 'initial', trig, work, ifail)
+   !
+   !call maggot(ak, b)
+   !call c06haf(1, n, b, 'subsequent', trig, work, ifail)
+   
+   call sine2fourier(ak, a2)   
+   call ifft_odd(fft_result, a2)
 
    open (1, file='test.dat')
-   do i = 1, n
-      write (1, '(3E18.7)') (i - 1)*dx, fft_result(i), fft_mirr(i)
-      !write (1, '(3E18.7)') (i - 1)*dx, i_c(i), b(i)
+   do i = 1, 2*n
+      write (1, '(3E18.7)') (i - 1)*dx, fft_result(i), a2(i)
+      !write (1, '(3E18.7)') (i - 1)*dx, fft_result(i), fft_mirr(i)
+      !!write (1, '(3E18.7)') (i - 1)*dx, a(i), b(i)
    end do
    close (1)
 
-   open (1, file='test2.dat')
-   write (1, '(2E18.7)') 0, 0
-   do i = 1, n - 1
-      !write (1, '(2f12.7)') i*dx, fsin(i)
-      write (1, '(2E18.7)') i*dx, mirr(i)
-   end do
-   close (1)
+   !open (1, file='test2.dat')
+   !write (1, '(2E18.7)') 0, 0
+   !do i = 1, n - 1
+   !   !write (1, '(2f12.7)') i*dx, fsin(i)
+   !   write (1, '(2E18.7)') i*dx, mirr(i)
+   !end do
+   !close (1)
 
 end program mirror

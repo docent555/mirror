@@ -35,12 +35,7 @@ contains
       do k = 1, n
          sintr_mirr(k) = 2.0d0/(k*pi)*(cos(k*pi*xl/L) - cos(k*pi*xr/L))
       end do
-      sintr_mirr(:) = sintr_mirr/dsqrt(2.0d0/n)
-
-      !!make fourier coefficients from sine transform
-      !fft_mirr = 0.0d0
-      !fft_mirr(2:n) = -sintr_mirr(1:n - 1)
-      !fft_mirr(n + 2:2*n) = sintr_mirr(n - 1:1:-1)
+      sintr_mirr(:) = sintr_mirr/dsqrt(2.0d0/n)      
 
       call sine2fourier(sintr_mirr, fft_mirr)
 
@@ -62,18 +57,19 @@ contains
 
    end subroutine reflection_init
 
-   subroutine ifft(fft_re, fft_im)
+   subroutine ifft_odd(fft_re, fft_im)
 
       implicit none
 
       real(8), intent(inout) :: fft_re(2*n), fft_im(2*n)
       integer(4) ifail
 
+      fft_re = 0.0d0
       call c06gcf(fft_im, 2*n, ifail)
       call c06fcf(fft_re, fft_im, 2*n, fft_work, ifail)
       call c06gcf(fft_im, 2*n, ifail)
 
-   end subroutine ifft
+   end subroutine ifft_odd
 
    subroutine maggot(a, b)
 
