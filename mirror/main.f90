@@ -4,10 +4,10 @@ program mirror
    use ifport
    implicit none
 
-   integer(4), parameter :: nn = 1024
+   integer(4), parameter :: nn = 2048
    real(8) dx
    integer(4) i, j, il, ifail
-   real(8) ak(nn), a(nn), a2(2*nn), mirr(nn), trig4(8*nn), work4(4*nn), x, fsin(nn), fsin2(2*nn), fft_fiction(2*nn), fsintr(nn), fsintr2(2*nn), s(nn), b(nn)
+   real(8) aak(nn), ak(nn), a(nn), a4(4*nn), mirr(nn), x, fsin(nn), s(nn), ffsin(2*nn), ss(2*nn), b(nn), i_sintr_mir(nn), b_fbf(4*nn)
    integer(c_int) hours1, minutes1, seconds1, hours2, minutes2, seconds2
    real(c_double) start_time1, stop_time1, calc_time1, start_time2, stop_time2, calc_time2
 
@@ -15,39 +15,36 @@ program mirror
 
    dx = L/n
 
-   do i = 1, n - 1
-      fsin(i) = dsin(pi/L*i*dx)
+   do i = 1, n
+      fsin(i) = dsin(5*pi/L*(i - 1)*dx)
    end do
 
-   s(1) = 0.0d0
-   s(2:n) = fsin(1:n - 1)
+   s(1:n - 1) = fsin(2:n)
+   s(n) = 0
 
-   !!with fourer
-   !fsin2 = 0.0d0
-   !fsin2(2:n) = fsin(1:n - 1)
-   !fsin2(n + 2:2*n) = -fsin(n - 1:1:-1)
-   !!fourier transform
-   !call c06fcf(fsin2, fft_fiction, 2*n, work, ifail)
-   !!backward fourier
-   !call c06gcf(fft_fiction, 2*n, ifail)
-   !call c06fcf(fsin2, fft_fiction, 2*n, work, ifail)
-   !call c06gcf(fft_fiction, 2*n, ifail)
+   ffsin(1:n) = fsin
+   ffsin(n + 2:2*n) = -fsin(n:2:-1)
+
+   call c06haf(1, n, s, 'initial', trig_haf, work_haf, ifail)
+
+   call haf2faf(s, ss)
+   !ss(:) = ffsin
+   !call c06faf(ss, 2*n, work_faf, ifail)
+   call c06gbf(ss, 2*n, ifail)
+   call c06fbf(ss, 2*n, work_faf, ifail)
+
+   !open (1, file='test1.dat')
+   !do i = 1, n
+   !   write (1, '(i,2f18.7)') i, s(i), fsin(i)
+   !end do
+   !close (1)
    !
-   !!with sine transorm
-   !fsintr(:) = fsin
-   !call c06haf(1, n, fsintr, 'initial', trig, work, ifail)
-   !!from sine transform to fourier transform
-   !fft_result = 0.0d0
-   !fft_result(2:n) = -fsintr(1:n - 1)
-   !fft_result(n + 2:2*n) = fsintr(n - 1:1:-1)
-   !!!backward fourier
-   !!call c06gcf(fft_result, 2*n, ifail)
-   !!call c06fcf(fsintr2, fft_result, 2*n, work, ifail)
-   !!call c06gcf(fft_result, 2*n, ifail)
-   !!from fourier to sine
-   !fsin(1:n-1) = -fft_result(2:n)
-   !fsin(n) = 0
-   !call c06haf(1, n, fsin, 'subsequent', trig, work, ifail)
+   !open (1, file='test2.dat')
+   !do i = 1, 2*n
+   !   write (1, '(i,2f18.7)') i, ss(i), ffsin(i)
+   !end do
+   !close (1)
+   !stop
 
    !coefficients of the function that we will reflect
    ak = 0
@@ -56,7 +53,10 @@ program mirror
    ak(5) = 21
    ak(7) = 12
    ak(9) = 7
-   ak(11) = 16   
+   ak(11) = 16
+   !ak(63) = 1
+   !ak(787) = 10
+   !ak(2047) = 3
 
    !mirror
    !il = xl/dx
@@ -65,52 +65,40 @@ program mirror
    !mir(n - il:n) = 0.0d0
 
    a(:) = ak
-   call c06haf(1, n, a, 'initial', trig, work, ifail)
-
-   !sintr_mir4(1:n) = sintr_mir/dsqrt(0.5d0/n)
-   !sintr_mir4(n+1:4*n) = 0
+   call c06haf(1, n, a, 'initial', trig_haf, work_haf, ifail)
 
    !reverse transformation from analytics
-   !i_sintr_mir(:) = sintr_mir
-   !call c06haf(1, n, i_sintr_mir, 'subsequent', trig, work, ifail)
+   i_sintr_mir(:) = mirr_haf
+   call c06haf(1, n, i_sintr_mir, 'subsequent', trig_haf, work_haf, ifail)
 
-   !!matrix
-   !do i = 1, n
-   !   do j = 1, n
-   !      if ((i .eq. n) .or. (j .eq. n)) then
-   !         r(i, j) = 0
-   !      elseif (i == j) then
-   !         r(i, i) = (2*i*pi*(-xl + xr) + L*sin((2*i*pi*xl)/L) - L*sin((2*i*pi*xr)/L))/(2.*L*i*pi)
-   !      else
-   !         r(i, j) = ((-sin(((j - i)*pi*xl)/L) + sin(((j - i)*pi*xr)/L))/(j - i) + &
-   !                    (sin(((j + i)*pi*xl)/L) - sin(((j + i)*pi*xr)/L))/(j + i))/pi
-   !         !r(i, j) = (2*(-(i*cos((i*pi*xl)/L)*sin((j*pi*xl)/L)) + j*cos((j*pi*xl)/L)*sin((i*pi*xl)/L) + &
-   !         !                      i*cos((i*pi*xr)/L)*sin((j*pi*xr)/L) - j*cos((j*pi*xr)/L)*sin((i*pi*xr)/L)))/((j - i)*(j + i)*pi)
-   !      end if
-   !   end do
-   !end do
-
-   !call c06ecf(fft_result, fft_mirr, 2*n, ifail)
-
-   !fft_result = 0.0d0
-   !call ifft(fft_result, fft_mirr)
-   !
-   !mirr(:) = sintr_mirr
-   !call c06haf(1, n, mirr, 'initial', trig, work, ifail)
-   !
-   !call maggot(ak, b)
-   !call c06haf(1, n, b, 'subsequent', trig, work, ifail)
+   call haf2faf(ak, a_faf)
+   call c06gbf(a_faf, 4*n, ifail)
+   call c06fbf(a_faf, 4*n, work_faf, ifail)
    
-   call sine2fourier(ak, a2)   
-   call ifft_odd(fft_result, a2)
-
+   call haf2faf(mirr_haf, mirr_faf)
+   call c06gbf(mirr_faf, 4*n, ifail)
+   call c06fbf(mirr_faf, 4*n, work_faf, ifail)
+   
+   b_fbf(:) = a_faf*mirr_faf
+   call c06faf(b_fbf, 4*n, work_faf, ifail) ! fourier coeff. of reflected wave
+   
+   
+   call c06gbf(b_fbf, 4*n, ifail)
+   call c06fbf(b_fbf, 4*n, work_faf, ifail)
+   
+   
    open (1, file='test.dat')
-   do i = 1, 2*n
-      write (1, '(3E18.7)') (i - 1)*dx, fft_result(i), a2(i)
+   do i = 1, 4*n
+      !write (1, '(3E18.7)') (i - 1)*dx, fft_result(i), a4(i)
       !write (1, '(3E18.7)') (i - 1)*dx, fft_result(i), fft_mirr(i)
-      !!write (1, '(3E18.7)') (i - 1)*dx, a(i), b(i)
+      !write (1, '(4E18.7)') (i - 1)*dx, a(i), b(i), i_sintr_mir(i)
+      write (1, '(i,3f18.7)') i, a_faf(i), mirr_faf(i), b_fbf(i)
    end do
    close (1)
+
+   !do i = 1, n
+   !   if (ak(i) == aak(i)) print *, 'OK'
+   !end do
 
    !open (1, file='test2.dat')
    !write (1, '(2E18.7)') 0, 0

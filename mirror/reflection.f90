@@ -2,10 +2,12 @@ module reflection
 
    implicit none
 
-   integer(4) n, n2
+   integer(4) n, n2, n3, n4
    real(8) L, xl, xr, pi
 
-   real(8), allocatable :: sintr_mirr(:), trig(:), work(:), fft_mirr(:), fft_result(:), fft_work(:), r(:, :)
+   real(8), allocatable :: mirr_haf(:), trig_haf(:), work_haf(:), work_faf(:), mirr_fcf(:), mirr_faf(:), result_fcf(:), work_fcf(:), r(:, :), a_faf(:), a_fcf(:)
+
+   !private trig_haf, work_haf
 
 contains
 
@@ -18,13 +20,19 @@ contains
 
       n = nn
       n2 = 2*n
+      n3 = 3*n
+      n4 = 4*n
       L = LL
       xl = xll
       xr = L - xl
 
+      a_fcf = 0.0d0
+      mirr_fcf = 0.0d0
+
       pi = 2.0d0*dasin(1.0d0)
 
-      allocate (sintr_mirr(n), trig(2*n), work(n), fft_work(2*n), fft_mirr(2*n), fft_result(2*n), r(n, n), stat=err_alloc)
+      allocate (mirr_haf(n), trig_haf(2*n), work_haf(n), work_faf(4*n), work_fcf(4*n), mirr_fcf(4*n), mirr_faf(4*n), result_fcf(4*n), r(n, n), &
+                a_faf(4*n), a_fcf(4*n), stat=err_alloc)
 
       if (err_alloc /= 0) then
          print *, "allocation error"
@@ -33,11 +41,11 @@ contains
       end if
 
       do k = 1, n
-         sintr_mirr(k) = 2.0d0/(k*pi)*(cos(k*pi*xl/L) - cos(k*pi*xr/L))
+         mirr_haf(k) = 2.0d0/(k*pi)*(cos(k*pi*xl/L) - cos(k*pi*xr/L))
       end do
-      sintr_mirr(:) = sintr_mirr/dsqrt(2.0d0/n)      
+      mirr_haf(:) = mirr_haf/dsqrt(2.0d0/n)
 
-      call sine2fourier(sintr_mirr, fft_mirr)
+      call haf2fcf(mirr_haf, mirr_fcf(1:2*n))
 
       !matrix
       do i = 1, n
@@ -61,13 +69,13 @@ contains
 
       implicit none
 
-      real(8), intent(inout) :: fft_re(2*n), fft_im(2*n)
+      real(8), intent(inout) :: fft_re(4*n), fft_im(4*n)
       integer(4) ifail
 
       fft_re = 0.0d0
-      call c06gcf(fft_im, 2*n, ifail)
-      call c06fcf(fft_re, fft_im, 2*n, fft_work, ifail)
-      call c06gcf(fft_im, 2*n, ifail)
+      call c06gcf(fft_im, n4, ifail)
+      call c06fcf(fft_re, fft_im, n4, work_fcf, ifail)
+      call c06gcf(fft_im, n4, ifail)
 
    end subroutine ifft_odd
 
@@ -82,35 +90,81 @@ contains
       b = 0.0d0
       do i = 1, n
          do j = 1, n
-            b(i) = b(i) + r(j, i)*a(j)
+            b(i) = b(i) + r(i, j)*a(j)
          end do
       end do
 
    end subroutine maggot
 
-   subroutine sine2fourier(s, f)
+   subroutine reflect(a, b)
 
       implicit none
 
+      integer i, ifail
+      real(8), intent(in) :: a(n)
+      real(8), intent(inout) :: b(n)
+
+      call haf2fcf(a, a_fcf(1:2*n))
+
+      b(:) = a_fcf(1:n)
+
+   end subroutine reflect
+
+   subroutine haf2fcf(s, f)
+      implicit none
+
       real(8), intent(in) :: s(n)
-      real(8), intent(out) :: f(n2)
+      real(8), intent(out) :: f(n4)
 
       !make fourier coefficients from sine transform
       f = 0.0d0
       f(2:n) = -s(1:n - 1)
-      f(n + 2:2*n) = s(n - 1:1:-1)
-   end subroutine sine2fourier
+      f(3*n + 2:n4) = s(n - 1:1:-1)
+   end subroutine haf2fcf
 
-   subroutine fourier2sine(f, s)
-
+   subroutine haf2faf(s, f)
       implicit none
 
-      real(8), intent(in) :: f(n2)
+      real(8), intent(in) :: s(n)
+      real(8), intent(out) :: f(n4)
+
+      !make fourier coefficients from sine ones
+      f = 0.0d0
+      f(n4:n3 + 2:-1) = -s(1:n - 1)*dsqrt(2.0d0)
+
+      !open(1, file='test.dat')
+      !do i =1,n2
+      !   write(1, '(i,f18.7)') i, f(i)
+      !enddo
+      !stop
+   end subroutine haf2faf
+   
+   subroutine faf2haf(f, s)
+      implicit none
+
+      real(8), intent(out) :: s(n)
+      real(8), intent(in) :: f(n4)
+
+      !make fourier coefficients from sine ones      
+      s(1:n - 1) = -f(n4:n3 + 2:-1)
+
+      !open(1, file='test.dat')
+      !do i =1,n2
+      !   write(1, '(i,f18.7)') i, f(i)
+      !enddo
+      !stop
+   end subroutine faf2haf
+
+   subroutine fourier2sine(f, s)
+      implicit none
+
+      real(8), intent(in) :: f(n4)
       real(8), intent(out) :: s(n)
 
-      !make sine transform coefficients from fourier ones
+      !make sine transform  from fourier coefficients
+      s = 0.0d0
       s(1:n - 1) = -f(2:n)
-      s(n) = 0
+
    end subroutine fourier2sine
 
 end module reflection
