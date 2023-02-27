@@ -4,13 +4,14 @@ program mirror
    use ifport
    implicit none
 
-   integer(4), parameter :: nn = 2048
+   integer(4), parameter :: nn = 512
    real(8) dx
    integer(4) i, j, il, ifail
-   real(8) aak(nn), ak(nn), a(nn), a4(4*nn), mirr(nn), x, fsin(nn), s(nn), ffsin(2*nn), ss(2*nn), b(nn), i_sintr_mir(nn), b_fbf(4*nn)
+  real(8) aak(nn), ak(nn), a(nn), af(nn), a2(2*nn), x, fsin(nn), s(nn), ffsin(2*nn), ss(2*nn), b(nn), i_sintr_mir(nn), b_fbf(4*nn), c, m(nn)
    integer(c_int) hours1, minutes1, seconds1, hours2, minutes2, seconds2
    real(c_double) start_time1, stop_time1, calc_time1, start_time2, stop_time2, calc_time2
 
+   !call reflection_init(nn, 1.0d0, 0.35d0)
    call reflection_init(nn, 1.0d0, 0.35d0)
 
    dx = L/n
@@ -27,11 +28,11 @@ program mirror
 
    call c06haf(1, n, s, 'initial', trig_haf, work_haf, ifail)
 
-   call haf2faf(s, ss)
+   !call haf2faf(s, ss)
    !ss(:) = ffsin
    !call c06faf(ss, 2*n, work_faf, ifail)
-   call c06gbf(ss, 2*n, ifail)
-   call c06fbf(ss, 2*n, work_faf, ifail)
+   !call c06gbf(ss, 2*n, ifail)
+   !call c06fbf(ss, 2*n, work_faf, ifail)
 
    !open (1, file='test1.dat')
    !do i = 1, n
@@ -64,48 +65,46 @@ program mirror
    !mir(1:il) = 0.0d0
    !mir(n - il:n) = 0.0d0
 
-   a(:) = ak
-   call c06haf(1, n, a, 'initial', trig_haf, work_haf, ifail)
+   !a(:) = ak
+   !a2 = 0
+   !a2(1:n) = dsqrt(2.0d0)*ak
+   !call c06haf(1, n, a, 'initial', trig_haf, work_haf, ifail)
+   !call c06haf(1, n2, a2, 'initial', trig2_haf, work2_haf, ifail)
 
-   !reverse transformation from analytics
-   i_sintr_mir(:) = mirr_haf
-   call c06haf(1, n, i_sintr_mir, 'subsequent', trig_haf, work_haf, ifail)
+   !call c06haf(1, n, mirr_haf, 'initial', trig_haf, work_haf, ifail)
+   !call c06haf(1, n2, mirr2_haf, 'initial', trig2_haf, work2_haf, ifail)
 
-   call haf2faf(ak, a_faf)
-   call c06gbf(a_faf, 4*n, ifail)
-   call c06fbf(a_faf, 4*n, work_faf, ifail)
-   
-   call haf2faf(mirr_haf, mirr_faf)
-   call c06gbf(mirr_faf, 4*n, ifail)
-   call c06fbf(mirr_faf, 4*n, work_faf, ifail)
-   
-   b_fbf(:) = a_faf*mirr_faf
-   call c06faf(b_fbf, 4*n, work_faf, ifail) ! fourier coeff. of reflected wave
-   
-   
-   call c06gbf(b_fbf, 4*n, ifail)
-   call c06fbf(b_fbf, 4*n, work_faf, ifail)
-   
-   
-   open (1, file='test.dat')
-   do i = 1, 4*n
-      !write (1, '(3E18.7)') (i - 1)*dx, fft_result(i), a4(i)
-      !write (1, '(3E18.7)') (i - 1)*dx, fft_result(i), fft_mirr(i)
-      !write (1, '(4E18.7)') (i - 1)*dx, a(i), b(i), i_sintr_mir(i)
-      write (1, '(i,3f18.7)') i, a_faf(i), mirr_faf(i), b_fbf(i)
-   end do
-   close (1)
+   call reflect_faf(ak, af)
+   call reflect_haf(ak, a)
+   call maggot(ak, m)
 
+   !call haf2faf(ak, a_faf)
+   !call c06gbf(a_faf, 4*n, ifail)
+   !c = sqrt(dble(n)/512.0d0)
+   !a_faf = c*a_faf
+   !call c06fbf(a_faf, 4*n, work_faf, ifail)
+   !
+   !call haf2faf(mirr_haf, mirr_faf)
+   !mirr_faf = dsqrt(2.0d0)*mirr_faf
+   !call c06gbf(mirr_faf, 4*n, ifail)
+   !call c06fbf(mirr_faf, 4*n, work_faf, ifail)
+   !
+   !b_fbf(:) = a_faf*mirr_faf
+   !call c06faf(b_fbf, 4*n, work_faf, ifail) ! fourier coeff. of reflected wave
+   !
+   !call c06gbf(b_fbf, 4*n, ifail)
+   !call c06fbf(b_fbf, 4*n, work_faf, ifail)
+
+   !open (1, file='test.dat')
    !do i = 1, n
-   !   if (ak(i) == aak(i)) print *, 'OK'
-   !end do
-
-   !open (1, file='test2.dat')
-   !write (1, '(2E18.7)') 0, 0
-   !do i = 1, n - 1
-   !   !write (1, '(2f12.7)') i*dx, fsin(i)
-   !   write (1, '(2E18.7)') i*dx, mirr(i)
+   !   write (1, '(i,2f18.7)') i, mirr_haf(i), mirr2_haf(2*i)
    !end do
    !close (1)
+
+   open (1, file='test.dat')
+   do i = 1, n
+      write (1, '(i,3f18.7)') i, a(i), af(i), m(i)
+   end do
+   close (1)
 
 end program mirror
