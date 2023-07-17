@@ -65,10 +65,10 @@ contains
             if ((i .eq. n) .or. (j .eq. n)) then
                r(i, j) = 0
             elseif (i == j) then
-               r(i, i) = (2*i*pi*(-xl + xr) + L*sin((2*i*pi*xl)/L) - L*sin((2*i*pi*xr)/L))/(2.*L*i*pi)
+               r(i, i) = (2*i*pi*(-xl + xr) + L*dsin((2*i*pi*xl)/L) - L*dsin((2*i*pi*xr)/L))/(2.*L*i*pi)
             else
-               r(i, j) = ((-sin(((j - i)*pi*xl)/L) + sin(((j - i)*pi*xr)/L))/(j - i) + &
-                          (sin(((j + i)*pi*xl)/L) - sin(((j + i)*pi*xr)/L))/(j + i))/pi
+               r(i, j) = ((-dsin(((j - i)*pi*xl)/L) + dsin(((j - i)*pi*xr)/L))/(j - i) + &
+                          (dsin(((j + i)*pi*xl)/L) - dsin(((j + i)*pi*xr)/L))/(j + i))/pi
                !r(i, j) = (2*(-(i*cos((i*pi*xl)/L)*sin((j*pi*xl)/L)) + j*cos((j*pi*xl)/L)*sin((i*pi*xl)/L) + &
                !                      i*cos((i*pi*xr)/L)*sin((j*pi*xr)/L) - j*cos((j*pi*xr)/L)*sin((i*pi*xr)/L)))/((j - i)*(j + i)*pi)
             end if
@@ -85,6 +85,8 @@ contains
       !   write (1, '(i,3f18.7)') i, mirr2(2*i), mirr(i), mirr_faf(2*i + 1)
       !end do
       !close (1)
+      
+      !print *, pi, L, xl, xr
       !
       !open (1, file='r.dat')
       !do i = 1, n

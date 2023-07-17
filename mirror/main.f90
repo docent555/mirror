@@ -12,7 +12,7 @@ program mirror
    real(c_double) start_time1, stop_time1, calc_time1, start_time2, stop_time2, calc_time2
 
    !call reflection_init(nn, 1.0d0, 0.35d0)
-   call reflection_init(nn, 1.0d0, 0.35d0)
+   call reflection_init(nn, 10d0, 2d0)
 
    dx = L/n
 
@@ -65,10 +65,10 @@ program mirror
    !mir(1:il) = 0.0d0
    !mir(n - il:n) = 0.0d0
 
-   !a(:) = ak
+   a(:) = ak
    !a2 = 0
    !a2(1:n) = dsqrt(2.0d0)*ak
-   !call c06haf(1, n, a, 'initial', trig_haf, work_haf, ifail)
+   call c06haf(1, n, a, 'initial', trig_haf, work_haf, ifail)
    !call c06haf(1, n2, a2, 'initial', trig2_haf, work2_haf, ifail)
 
    !call c06haf(1, n, mirr_haf, 'initial', trig_haf, work_haf, ifail)
@@ -100,11 +100,16 @@ program mirror
    !   write (1, '(i,2f18.7)') i, mirr_haf(i), mirr2_haf(2*i)
    !end do
    !close (1)
-
-   open (1, file='test.dat')
-   do i = 1, n
-      write (1, '(i,3f18.7)') i, a(i), af(i), m(i)
-   end do
-   close (1)
-
+   
+   call c06haf(1, n, m, 'subsequent', trig_haf, work_haf, ifail)
+   call c06haf(1, n, a, 'subsequent', trig_haf, work_haf, ifail)
+   call c06haf(1, n, af, 'subsequent', trig_haf, work_haf, ifail)
+   
+   open(1, file = 'test.dat') 
+   do i = 1,n
+      write(1, '(4e17.8)') (i-1)*dx, m(i), a(i), af(i)
+   end do		
+   close(1)
+   			
+  
 end program mirror
